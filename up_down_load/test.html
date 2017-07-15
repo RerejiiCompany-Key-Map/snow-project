@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>view & download</title>
+</head>
+
+<body>
+
+    <form action="" method="get">
+        画像ID :
+        <input type="search" name="id" value="'.$id.'">';
+        <input type="submit" value="view">
+    </form>
+    </br>
+
+    <img src="imgs/tONLUgpT.png" max="1000px">
+    </br>
+    <form action="download.php?id=output" method="get">
+        <input type="submit" value="Download">
+        <input type="hidden" name="id" value="'.$id.'">
+    </form>
+
+</body>
+
+</html>
