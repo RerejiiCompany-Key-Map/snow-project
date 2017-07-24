@@ -28,7 +28,13 @@ OUT_FILE = 'out.png'
 # ---------- METHODS ----------
 # -----------------------------
 
-def design1(img, shape):
+def design_det1(img, rect):
+    top, bottom, left, right = rect.top(), rect.bottom(), rect.left(), rect.right()
+    cv2.rectangle(img, (left, top), (right, bottom), (0, 0, 255), thickness=10)
+    return img
+
+
+def design_pre1(img, shape):
     """ サンプルのように顔の輪郭をそのまま表示 """
     for shape_point_count in range(shape.num_parts):
         shape_point = shape.part(shape_point_count)
@@ -58,7 +64,7 @@ def design1(img, shape):
     return img
 
 
-def decorate(img, design=design1):
+def decorate_predictor(img, design=design_pre1):
     try:
         # RGB変換 (opencv形式からskimage形式に変換)
         img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -75,6 +81,23 @@ def decorate(img, design=design1):
                     img = design(img, shape)
         return img
     
+    except:
+        return img
+
+
+def decorate_detector(img, design):
+    try:
+        # RGB変換 (opencv形式からskimage形式に変換)
+        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        # frontal_face_detectorクラスは矩形, スコア, サブ検出器の結果を返す
+        dets, scores, idx = detector.run(img_rgb, 1)
+
+        if len(dets) > 0:
+            for i, rect in enumerate(dets):
+                img = design_det1(img, rect)
+
+        return img
+
     except:
         return img
 
@@ -101,7 +124,8 @@ def main():
         #img = frame.copy()
 
         # 顔検出 & デザイン
-        out = decorate(img=resize, design=design1)
+        out = decorate_predictor(img=resize, design=design_pre1)
+        #out = decorate_detector(img=resize, design=design_det1)
         #out = face.facepredictor_dlib(resize)
 
         # フレームの表示
