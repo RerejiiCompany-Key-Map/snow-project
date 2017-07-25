@@ -34,6 +34,7 @@ def show_qrcode(ID):
     img = qrcode.make(DOWNLOAD_URL + '?id=' + ID)
 
     # OS の Viewer を使用 (Mac だと Preview.app)
+    return img
     img.show()
 
 
