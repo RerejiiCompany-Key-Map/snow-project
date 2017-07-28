@@ -9,8 +9,8 @@ import cv2
 import dlib
 from tkinter import (
     Tk,
-    BooleanVar, StringVar,
-    LabelFrame, Button, Checkbutton, Label
+    BooleanVar, StringVar, IntVar,
+    LabelFrame, Button, Checkbutton, Label, Radiobutton
 )
 
 sys.path.append('../up_down_load')
@@ -19,23 +19,22 @@ import upload_client
 # -------------------------------
 # ---------- CONSTANTS ----------
 # -------------------------------
-FRAME_WIDTH, FRAME_HEIGHT = 400, 300
+FRAME_WIDTH, FRAME_HEIGHT = 640, 480
 INTERVAL = 20
 
 BTN_TEXTS = ["start", "take", "send", "clear", "finish"]
-CHECK_TEXTS = [
-    "KUT logo", "krlab logo",
-    "detected face rectangle", "detected face predictor",
-]
-CHECK_INIT = [
-    True, True,
-    False, True,
-]
+
+LOGO_TEXTS = ["KUT logo", "krlab logo"]
+FACE_TEXTS = ["detected face rectangle", "detected face predictor"]
+FRAME_TEXTS = ["frame1(clover)", "frame2(strawberry)", "frame3(flower)", "frame4(fruit)", "frame5(balloon)", "frame6(ink)", "no"]
+LOGO_INITS = [True, True]
+FACE_INITS = [False, True]
+FRAME_INITS = [False, False, False, False, False, False, True]
 
 # load KUT logo
-a = cv2.imread('./data/KUT_logo.png', cv2.IMREAD_UNCHANGED)
+a = cv2.imread('./data/logo/kut.png', cv2.IMREAD_UNCHANGED)
 h, w = a.shape[:2]
-w_ = FRAME_WIDTH/4
+w_ = FRAME_WIDTH/6
 h_ = h * (w_/w)
 KUT_W, KUT_H = int(w_), int(h_)
 KUT_LOGO = cv2.resize(a, (KUT_W, KUT_H))
@@ -45,9 +44,9 @@ KUT_MASK = KUT_MASK / 255.0 # 0-255 -> 0.0-0.1
 KUT_LOGO = KUT_LOGO[:, :, :3] # アルファチャンネル除去
 
 # load krlab logo
-a = cv2.imread('./data/krlab_logo.png', cv2.IMREAD_UNCHANGED)
+a = cv2.imread('./data/logo/krlab.png', cv2.IMREAD_UNCHANGED)
 h, w = a.shape[:2]
-w_ = FRAME_WIDTH/3
+w_ = FRAME_WIDTH/5
 h_ = h * (w_/w)
 KRLAB_W, KRLAB_H = int(w_), int(h_)
 KRLAB_LOGO = cv2.resize(a, (KRLAB_W, KRLAB_H))
@@ -56,6 +55,19 @@ KRLAB_MASK = cv2.cvtColor(KRLAB_MASK, cv2.COLOR_GRAY2BGR) # 3色分に増やす
 KRLAB_MASK = KRLAB_MASK / 255.0 # 0-255 -> 0.0-0.1
 KRLAB_LOGO = KRLAB_LOGO[:, :, :3] # アルファチャンネル除去
 del a, h, w, w_, h_
+
+# load frames
+FRAME, FRAME_MASK = [], []
+for i in range(0, 6):
+    a = cv2.imread('./data/frame/frame%d.png'%(i+1), cv2.IMREAD_UNCHANGED)
+    mask = a[:, :, 3] # アルファチャンネルだけ抜き出す
+    mask = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR) # 3職分に増やす
+    mask = mask / 255.0 # 0-255 -> 0.0-1.0
+    frame = a[:, :, :3] # アルファチャンネル除去
+    FRAME.append(frame)
+    FRAME_MASK.append(mask)
+del a
+
 
 # dlib
 predictor_path = './data/shape_predictor_68_face_landmarks.dat'
@@ -91,7 +103,10 @@ IDvar = None
 # basic operation buttons
 BOBs = []
 
-checked_boolvars = []
+checked_boolvars_logo = []
+checked_boolvars_face = []
+#checked_boolvars_frame = []
+checked_radio_frame = None
 
 
 
@@ -147,6 +162,11 @@ def mark_predictor(img, shapes):
                 cv2.circle(img, (shape_point.x, shape_point.y), 2, (128, 255, 0), -1)
     return img
 
+def disp_frame(img, n):
+    out = np.uint8(img * (1 - FRAME_MASK[n]))
+    out = np.uint8(out + FRAME[n] * FRAME_MASK[n])
+    return out
+
 
 ### Button Actions
 def start():
@@ -168,14 +188,20 @@ def display():
     shapes = [predictor(img_rgb, rect) for rect in dets]
 
     # design
-    if checked_boolvars[0].get():
-        frame = kutlogo(frame)
-    if checked_boolvars[1].get():
-        frame = krlablogo(frame)
-    if checked_boolvars[2].get():
+    # face
+    if checked_boolvars_face[0].get():
         frame = detected_rectangle(frame.copy(), dets)
-    if checked_boolvars[3].get():
+    if checked_boolvars_face[1].get():
         frame = mark_predictor(frame.copy(), shapes)
+    # frame
+    n = checked_radio_frame.get()
+    if n < 6:
+        frame = disp_frame(frame, n)
+    # logo
+    if checked_boolvars_logo[0].get():
+        frame = kutlogo(frame)
+    if checked_boolvars_logo[1].get():
+        frame = krlablogo(frame)
 
     # show image
     cv2.imshow('camera', frame)
@@ -264,12 +290,27 @@ for (text, func) in zip(BTN_TEXTS, BTN_FUNCS):
 ### 詳細設定 (advanced setting)
 frame2 = LabelFrame(root, bd=2, relief='ridge', text='Advanced setting')
 frame2.pack(fill='x', padx=10, pady=10)
-for (text, ini) in zip(CHECK_TEXTS, CHECK_INIT):
+
+## logo
+Label(frame2, text='Logo').pack()
+for (text, ini) in zip(LOGO_TEXTS, LOGO_INITS):
     val = BooleanVar()
     val.set(ini)
-    checked_boolvars.append(val)
+    checked_boolvars_logo.append(val)
     Checkbutton(frame2, text=text, variable=val).pack(anchor='w', padx=4, pady=2)
-#Button(frame2, text="set", command=set).pack(side='right', padx=4, pady=2)
+Label(frame2, text='Face').pack()
+## face
+for (text, ini) in zip(FACE_TEXTS, FACE_INITS):
+    val = BooleanVar()
+    val.set(ini)
+    checked_boolvars_face.append(val)
+    Checkbutton(frame2, text=text, variable=val).pack(anchor='w', padx=4, pady=2)
+Label(frame2, text="Frame").pack()
+## frame
+checked_radio_frame = IntVar()
+checked_radio_frame.set(len(FRAME_TEXTS)-1)
+for i, text in enumerate(FRAME_TEXTS):
+    Radiobutton(frame2, text=text, variable=checked_radio_frame, value=i).pack(anchor='w', padx=4, pady=2)
 
 ### ID表示
 frame3 = LabelFrame(root, bd=2, relief='ridge', text='ID')
